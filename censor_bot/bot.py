@@ -8,13 +8,19 @@ from dotenv import load_dotenv
 # Load environment variables from the .env file
 load_dotenv()
 
-# Get the Discord bot token from environment variables
+# Get environment variables (with defaults if not set)
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 if not DISCORD_BOT_TOKEN:
     raise Exception("DISCORD_BOT_TOKEN not found in environment variables.")
 
-# List of blacklisted domains. Add any domains you want to censor.
-blacklisted_domains = ['badwebsite.com', 'malicious.com']
+# Default warning message if not provided via .env
+WARNING_MESSAGE = os.getenv("WARNING_MESSAGE", "Don't post that trash here:")
+
+# Get the blacklisted domains from env, defaulting to a sample list if not provided.
+# Expected format: "badwebsite.com, malicious.com"
+blacklisted_domains_env = os.getenv("BLACKLISTED_DOMAINS", "badwebsite.com,malicious.com")
+# Create a list by splitting and stripping whitespace
+blacklisted_domains = [domain.strip().lower() for domain in blacklisted_domains_env.split(",") if domain.strip()]
 
 # Setup intents; ensure the message_content intent is enabled.
 intents = discord.Intents.default()
@@ -58,7 +64,7 @@ async def on_message(message):
             try:
                 await message.delete()
                 warning = await message.channel.send(
-                    f"{message.author.mention} Don't post that trash here:\n{url}"
+                    f"{message.author.mention} {WARNING_MESSAGE}\n{url}"
                 )
                 # Delete the warning after 5 seconds.
                 await warning.delete(delay=5)

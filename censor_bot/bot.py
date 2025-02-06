@@ -8,6 +8,9 @@ from dotenv import load_dotenv
 # Load environment variables from the .env file
 load_dotenv()
 
+# Bot version number
+BOT_VERSION = "1.0.0"
+
 # Required environment variable: Bot token
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 if not DISCORD_BOT_TOKEN:
@@ -47,7 +50,7 @@ url_regex = re.compile(
 async def on_ready():
     # Sync the app commands (slash commands)
     await bot.tree.sync()
-    print(f"Logged in as {bot.user.name}")
+    print(f"Logged in as {bot.user.name} (Version: {BOT_VERSION})")
 
 @bot.event
 async def on_message(message):
@@ -147,6 +150,7 @@ async def togglelogging(interaction: discord.Interaction):
 @bot.tree.command(name="status", description="Show the current bot configuration and status.")
 async def status(interaction: discord.Interaction):
     status_msg = (
+        f"Bot Version: {BOT_VERSION}\n"
         f"Blacklisted domains: {', '.join(blacklisted_domains)}\n"
         f"Warning message: {WARNING_MESSAGE}\n"
         f"Logging: {'Enabled' if LOGGING_ENABLED else 'Disabled'}"

@@ -38,6 +38,17 @@ install_python() {
     else
         echo "Python3 is already installed."
     fi
+
+    # Check if pip is available, if not try to install it.
+    if ! python3 -m pip --version &>/dev/null; then
+        echo "pip is not available for Python3. Attempting to install pip..."
+        # Download get-pip.py and run it.
+        curl -sS https://bootstrap.pypa.io/get-pip.py -o get-pip.py || { echo "Failed to download get-pip.py"; exit 1; }
+        python3 get-pip.py || { echo "Failed to install pip"; exit 1; }
+        rm get-pip.py
+    else
+        echo "pip is already installed."
+    fi
 }
 
 # Install required system dependencies.
@@ -84,7 +95,7 @@ EOF
 
 echo ".env file has been created with your settings."
 
-# Check for requirements.txt; if not found, create it with necessary packages.
+# Check for requirements.txt; if not found, create it with necessary dependencies.
 if [ ! -f "requirements.txt" ]; then
     echo "requirements.txt not found. Creating requirements.txt with necessary dependencies..."
     cat <<EOL > requirements.txt

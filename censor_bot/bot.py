@@ -46,6 +46,17 @@ url_regex = re.compile(
     r"((https?:\/\/)?((www\.)?([\w\-]+\.[\w\-.]+))(\:\d+)?(\/[\w\-.?%&=]*)?)"
 )
 
+async def log_command(interaction: discord.Interaction, command_name: str, details: str = ""):
+    """Helper function to log the usage of slash commands to the log channel."""
+    if LOGGING_ENABLED and LOG_CHANNEL_ID:
+        log_channel = bot.get_channel(LOG_CHANNEL_ID)
+        if log_channel:
+            await log_channel.send(
+                f"User {interaction.user} used command /{command_name}. {details}"
+            )
+        else:
+            print("Log channel not found.")
+
 @bot.event
 async def on_ready():
     # Sync the app commands (slash commands)
@@ -106,6 +117,7 @@ async def adddomain(interaction: discord.Interaction, domain: str):
     else:
         blacklisted_domains.append(domain)
         await interaction.response.send_message(f"Domain '{domain}' added to the blacklist.", ephemeral=True)
+    await log_command(interaction, "adddomain", f"Domain: {domain}")
 
 # Slash command to remove a domain from the blacklist.
 @bot.tree.command(name="removedomain", description="Remove a domain from the blacklist.")
@@ -116,12 +128,14 @@ async def removedomain(interaction: discord.Interaction, domain: str):
         await interaction.response.send_message(f"Domain '{domain}' removed from the blacklist.", ephemeral=True)
     else:
         await interaction.response.send_message(f"Domain '{domain}' was not found in the blacklist.", ephemeral=True)
+    await log_command(interaction, "removedomain", f"Domain: {domain}")
 
 # Slash command to list all blacklisted domains.
 @bot.tree.command(name="listdomains", description="List all blacklisted domains.")
 async def listdomains(interaction: discord.Interaction):
     domains = ", ".join(blacklisted_domains) if blacklisted_domains else "No domains are blacklisted."
     await interaction.response.send_message(f"Blacklisted domains: {domains}", ephemeral=True)
+    await log_command(interaction, "listdomains", f"Domains: {domains}")
 
 # Slash command to update the warning message.
 @bot.tree.command(name="setwarning", description="Set a new warning message.")
@@ -129,6 +143,7 @@ async def setwarning(interaction: discord.Interaction, message: str):
     global WARNING_MESSAGE
     WARNING_MESSAGE = message
     await interaction.response.send_message(f"Warning message updated to: {WARNING_MESSAGE}", ephemeral=True)
+    await log_command(interaction, "setwarning", f"New warning: {WARNING_MESSAGE}")
 
 # Slash command to set the logging channel.
 @bot.tree.command(name="setlogchannel", description="Set the logging channel for bot actions.")
@@ -137,6 +152,7 @@ async def setlogchannel(interaction: discord.Interaction, channel: discord.TextC
     LOG_CHANNEL_ID = channel.id
     LOGGING_ENABLED = True
     await interaction.response.send_message(f"Log channel set to {channel.mention}.", ephemeral=True)
+    await log_command(interaction, "setlogchannel", f"Log channel set to: {channel.mention}")
 
 # Slash command to toggle logging on/off.
 @bot.tree.command(name="togglelogging", description="Toggle logging on or off.")
@@ -145,6 +161,7 @@ async def togglelogging(interaction: discord.Interaction):
     LOGGING_ENABLED = not LOGGING_ENABLED
     status = "enabled" if LOGGING_ENABLED else "disabled"
     await interaction.response.send_message(f"Logging has been {status}.", ephemeral=True)
+    await log_command(interaction, "togglelogging", f"Logging now: {status}")
 
 # Slash command to display the current configuration and status.
 @bot.tree.command(name="status", description="Show the current bot configuration and status.")
@@ -158,6 +175,7 @@ async def status(interaction: discord.Interaction):
     if LOG_CHANNEL_ID:
         status_msg += f" (Log channel ID: {LOG_CHANNEL_ID})"
     await interaction.response.send_message(status_msg, ephemeral=True)
+    await log_command(interaction, "status", details=status_msg)
 
 # Optional help command listing available slash commands.
 @bot.tree.command(name="help", description="Display available slash commands.")
@@ -173,5 +191,6 @@ async def help_command(interaction: discord.Interaction):
         "/help: Display this help message."
     )
     await interaction.response.send_message(help_text, ephemeral=True)
+    await log_command(interaction, "help", "Displayed help information.")
 
 bot.run(DISCORD_BOT_TOKEN)

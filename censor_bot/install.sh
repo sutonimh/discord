@@ -19,7 +19,7 @@ install_git() {
     fi
 }
 
-# Function to install Python3 and pip if not found.
+# Function to install Python3 if not found.
 install_python() {
     if ! command -v python3 &>/dev/null; then
         echo "Python3 is not installed. Attempting to install Python3..."
@@ -31,48 +31,58 @@ install_python() {
                 exit 1
             fi
         else
-            sudo apt update && sudo apt install -y python3 python3-pip || { echo "Failed to install Python3"; exit 1; }
+            sudo apt update && sudo apt install -y python3 || { echo "Failed to install Python3"; exit 1; }
         fi
     else
         echo "Python3 is already installed."
     fi
+}
 
-    # Check if pip is available; if not, try to install it.
-    if ! python3 -m pip --version &>/dev/null; then
-        echo "pip is not available for Python3. Attempting to install pip..."
-        
-        # Check if curl or wget exists; if not, install curl.
-        if ! command -v curl &>/dev/null && ! command -v wget &>/dev/null; then
-            echo "Neither curl nor wget is installed. Attempting to install curl..."
-            if [ "$(uname)" == "Darwin" ]; then
-                if command -v brew &>/dev/null; then
-                    brew install curl || { echo "Failed to install curl using brew"; exit 1; }
-                else
-                    echo "Please install curl manually on macOS."
-                    exit 1
-                fi
-            else
-                sudo apt update && sudo apt install -y curl || { echo "Failed to install curl"; exit 1; }
+# Function to ensure that python3-venv is installed.
+install_venv() {
+    python3 -m venv --help &>/dev/null
+    if [ $? -ne 0 ]; then
+        echo "python3-venv does not appear to be installed."
+        if [ "$(uname)" != "Darwin" ]; then
+            echo "Attempting to install python3-venv using apt..."
+            sudo apt update && sudo apt install -y python3-venv || { echo "Failed to install python3-venv. Please install it manually."; exit 1; }
+            # Verify that venv is now available.
+            python3 -m venv --help &>/dev/null
+            if [ $? -ne 0 ]; then
+                echo "python3-venv is still not available after installation. Exiting."
+                exit 1
             fi
+        else
+            echo "On macOS, please ensure that Python is installed properly (via Homebrew, for example)."
+            exit 1
         fi
-
-        # Download get-pip.py using curl if available; otherwise use wget.
-        if command -v curl &>/dev/null; then
-            curl -sS https://bootstrap.pypa.io/get-pip.py -o get-pip.py || { echo "Failed to download get-pip.py with curl"; exit 1; }
-        elif command -v wget &>/dev/null; then
-            wget -q https://bootstrap.pypa.io/get-pip.py -O get-pip.py || { echo "Failed to download get-pip.py with wget"; exit 1; }
-        fi
-
-        python3 get-pip.py || { echo "Failed to install pip"; exit 1; }
-        rm get-pip.py
     else
-        echo "pip is already installed."
+        echo "Python3 venv module is available."
+    fi
+}
+
+# Function to ensure either curl or wget is installed.
+install_downloader() {
+    if ! command -v curl &>/dev/null && ! command -v wget &>/dev/null; then
+        echo "Neither curl nor wget is installed. Attempting to install curl..."
+        if [ "$(uname)" == "Darwin" ]; then
+            if command -v brew &>/dev/null; then
+                brew install curl || { echo "Failed to install curl using brew"; exit 1; }
+            else
+                echo "Please install curl manually on macOS."
+                exit 1
+            fi
+        else
+            sudo apt update && sudo apt install -y curl || { echo "Failed to install curl"; exit 1; }
+        fi
     fi
 }
 
 # Install required system dependencies.
 install_git
 install_python
+install_venv
+install_downloader
 
 # Create a directory for the bot.
 TARGET_DIR="censor-bot"
@@ -99,8 +109,9 @@ read -rp "Enter your Discord Bot Token: " BOT_TOKEN
 read -rp "Enter your warning message (default: \"Don't post that trash here:\"): " USER_WARNING
 WARNING_MESSAGE=${USER_WARNING:-"Don't post that trash here:"}
 
-read -rp "Enter a comma separated list of domains to blacklist (default: badwebsite.com, malicious.com): " DOMAINS
-DOMAINS=${DOMAINS:-"badwebsite.com, malicious.com"}
+# Default blacklist domains updated to x.com, twitter.com
+read -rp "Enter a comma separated list of domains to blacklist (default: x.com, twitter.com): " DOMAINS
+DOMAINS=${DOMAINS:-"x.com, twitter.com"}
 
 read -rp "Enter logging channel ID (optional, leave blank for no logging): " LOG_CHANNEL
 
@@ -123,9 +134,17 @@ python-dotenv
 EOL
 fi
 
-# Install Python dependencies.
-echo "Installing Python dependencies from requirements.txt..."
-python3 -m pip install --upgrade pip
-python3 -m pip install -r requirements.txt
+# Create a virtual environment using --upgrade-deps and --break-system-packages.
+echo "Creating Python virtual environment..."
+python3 -m venv --upgrade-deps --break-system-packages venv || { echo "Failed to create virtual environment"; exit 1; }
 
-echo "Setup complete. You can now run your bot using: python3 bot.py"
+# Activate the virtual environment.
+source venv/bin/activate
+
+# Upgrade pip and install Python dependencies.
+echo "Upgrading pip and installing Python dependencies from requirements.txt..."
+pip install --upgrade pip
+pip install -r requirements.txt || { echo "Failed to install dependencies"; exit 1; }
+
+echo "Setup complete."
+echo "To run your bot, activate the virtual environment with 'source venv/bin/activate' and then run 'python bot.py'."

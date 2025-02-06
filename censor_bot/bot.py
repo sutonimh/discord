@@ -2,6 +2,16 @@ import discord
 from discord.ext import commands
 import re
 from urllib.parse import urlparse
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from the .env file
+load_dotenv()
+
+# Get the Discord bot token from environment variables
+DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
+if not DISCORD_BOT_TOKEN:
+    raise Exception("DISCORD_BOT_TOKEN not found in environment variables.")
 
 # List of blacklisted domains. Add any domains you want to censor.
 blacklisted_domains = ['badwebsite.com', 'malicious.com']
@@ -60,5 +70,4 @@ async def on_message(message):
     # Process other bot commands if present.
     await bot.process_commands(message)
 
-# Replace 'YOUR_BOT_TOKEN' with your bot's actual token.
-bot.run('YOUR_BOT_TOKEN')
+bot.run(DISCORD_BOT_TOKEN)

@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Bot version number
-BOT_VERSION = "1.0.0"
+BOT_VERSION = "1.1.0"
 
 # Required environment variable: Bot token
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")

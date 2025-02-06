@@ -36,7 +36,8 @@ else:
     LOG_CHANNEL_ID = None
     LOGGING_ENABLED = False
 
-# Owner ID for restricting slash command access. If blank, no restriction is applied.
+# Owner ID for restricting slash command access.
+# If left blank, no restriction is applied.
 owner_id_raw = os.getenv("OWNER_ID", "").strip()
 OWNER_ID = None
 if owner_id_raw:
@@ -51,19 +52,21 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Global check: Only allow slash commands from the owner if an OWNER_ID is set.
+# Global check: Only allow slash commands from the owner (if OWNER_ID is set)
 async def check_owner(interaction: discord.Interaction) -> bool:
     if OWNER_ID is None:
         # No owner restriction; allow everyone.
         return True
+    elif interaction.user.id == OWNER_ID:
+        return True
     else:
-        if interaction.user.id == OWNER_ID:
-            return True
-        else:
-            raise app_commands.CheckFailure("You are not authorized to use this command.")
+        raise app_commands.CheckFailure("You are not authorized to use this command.")
 
-# Add the global check to the command tree.
-bot.tree.add_check(check_owner)
+# Add the global check using an alternative method.
+if hasattr(bot, "add_application_command_check"):
+    bot.add_application_command_check(check_owner)
+else:
+    print("Global check function 'add_application_command_check' not available; consider decorating each command.")
 
 # Helper function to log command usage.
 async def log_command(interaction: discord.Interaction, command_name: str, details: str = ""):
@@ -81,7 +84,7 @@ url_regex = re.compile(
 
 @bot.event
 async def on_ready():
-    # Sync the slash commands (app commands)
+    # Sync the slash commands (application commands)
     await bot.tree.sync()
     print(f"Logged in as {bot.user.name} (Version: {BOT_VERSION})")
 

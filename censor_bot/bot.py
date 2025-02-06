@@ -15,7 +15,7 @@ if not DISCORD_BOT_TOKEN:
     raise Exception("DISCORD_BOT_TOKEN not found in environment variables.")
 
 # Bot version number
-BOT_VERSION = "1.1.1"
+BOT_VERSION = "1.0.0"
 
 # Configuration variables (with defaults)
 WARNING_MESSAGE = os.getenv("WARNING_MESSAGE", "Don't post that trash here:")
@@ -36,18 +36,31 @@ else:
     LOG_CHANNEL_ID = None
     LOGGING_ENABLED = False
 
+# Owner ID for restricting slash command access. If blank, no restriction is applied.
+owner_id_raw = os.getenv("OWNER_ID", "").strip()
+OWNER_ID = None
+if owner_id_raw:
+    try:
+        OWNER_ID = int(owner_id_raw)
+    except ValueError:
+        print("Invalid OWNER_ID provided; falling back to no owner restriction.")
+        OWNER_ID = None
+
 # Setup bot intents and create bot instance
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Global check: Only allow slash commands from suto#5101.
+# Global check: Only allow slash commands from the owner if an OWNER_ID is set.
 async def check_owner(interaction: discord.Interaction) -> bool:
-    # For improved reliability you might prefer to check the user's ID.
-    if interaction.user.name == "suto" and interaction.user.discriminator == "5101":
+    if OWNER_ID is None:
+        # No owner restriction; allow everyone.
         return True
     else:
-        raise app_commands.CheckFailure("You are not authorized to use this command.")
+        if interaction.user.id == OWNER_ID:
+            return True
+        else:
+            raise app_commands.CheckFailure("You are not authorized to use this command.")
 
 # Add the global check to the command tree.
 bot.tree.add_check(check_owner)
@@ -74,7 +87,7 @@ async def on_ready():
 
 @bot.event
 async def on_message(message):
-    # Ignore messages sent by the bot itself.
+    # Ignore messages sent by the bot.
     if message.author == bot.user:
         return
 

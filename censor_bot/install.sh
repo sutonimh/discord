@@ -84,13 +84,18 @@ EOF
 
 echo ".env file has been created with your settings."
 
-# Install Python dependencies from requirements.txt if it exists.
-if [ -f "requirements.txt" ]; then
-    echo "Installing Python dependencies from requirements.txt..."
-    python3 -m pip install --upgrade pip
-    python3 -m pip install -r requirements.txt
-else
-    echo "requirements.txt not found. Make sure you have installed discord.py and python-dotenv."
+# Check for requirements.txt; if not found, create it with necessary packages.
+if [ ! -f "requirements.txt" ]; then
+    echo "requirements.txt not found. Creating requirements.txt with necessary dependencies..."
+    cat <<EOL > requirements.txt
+discord.py>=2.0.0
+python-dotenv
+EOL
 fi
+
+# Install Python dependencies.
+echo "Installing Python dependencies from requirements.txt..."
+python3 -m pip install --upgrade pip
+python3 -m pip install -r requirements.txt
 
 echo "Setup complete. You can now run your bot using: python3 bot.py"

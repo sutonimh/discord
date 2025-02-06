@@ -4,7 +4,7 @@ import re
 from urllib.parse import urlparse
 
 # List of blacklisted domains. Add any domains you want to censor.
-blacklisted_domains = ['x.com', 'twitter.com']
+blacklisted_domains = ['badwebsite.com', 'malicious.com']
 
 # Setup intents; ensure the message_content intent is enabled.
 intents = discord.Intents.default()
@@ -48,7 +48,7 @@ async def on_message(message):
             try:
                 await message.delete()
                 warning = await message.channel.send(
-                    f"{message.author.mention}, links from `{domain}` are not allowed here."
+                    f"{message.author.mention} Don't post that trash here:\n{url}"
                 )
                 # Delete the warning after 5 seconds.
                 await warning.delete(delay=5)
@@ -61,4 +61,4 @@ async def on_message(message):
     await bot.process_commands(message)
 
 # Replace 'YOUR_BOT_TOKEN' with your bot's actual token.
-bot.run('MTMzNzA2MTE1MTcyNDQwNDc0Ng.GPyHwV.MPosD9yxPedSAVVOYmm8np-Uw4F_pGdGU-SQm4')
+bot.run('YOUR_BOT_TOKEN')

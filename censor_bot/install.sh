@@ -5,15 +5,13 @@ install_git() {
     if ! command -v git &>/dev/null; then
         echo "Git is not installed. Attempting to install Git..."
         if [ "$(uname)" == "Darwin" ]; then
-            # macOS: Try using Homebrew.
             if command -v brew &>/dev/null; then
                 brew install git || { echo "Failed to install Git using brew"; exit 1; }
             else
-                echo "Please install Homebrew first (https://brew.sh) or install Git manually."
+                echo "Please install Homebrew (https://brew.sh) or Git manually."
                 exit 1
             fi
         else
-            # Assume Linux Debian-based.
             sudo apt update && sudo apt install -y git || { echo "Failed to install Git"; exit 1; }
         fi
     else
@@ -29,7 +27,7 @@ install_python() {
             if command -v brew &>/dev/null; then
                 brew install python || { echo "Failed to install Python using brew"; exit 1; }
             else
-                echo "Please install Homebrew first (https://brew.sh) or install Python manually."
+                echo "Please install Homebrew (https://brew.sh) or Python manually."
                 exit 1
             fi
         else
@@ -39,11 +37,32 @@ install_python() {
         echo "Python3 is already installed."
     fi
 
-    # Check if pip is available, if not try to install it.
+    # Check if pip is available; if not, try to install it.
     if ! python3 -m pip --version &>/dev/null; then
         echo "pip is not available for Python3. Attempting to install pip..."
-        # Download get-pip.py and run it.
-        curl -sS https://bootstrap.pypa.io/get-pip.py -o get-pip.py || { echo "Failed to download get-pip.py"; exit 1; }
+        
+        # Check if curl or wget exists; if not, install curl.
+        if ! command -v curl &>/dev/null && ! command -v wget &>/dev/null; then
+            echo "Neither curl nor wget is installed. Attempting to install curl..."
+            if [ "$(uname)" == "Darwin" ]; then
+                if command -v brew &>/dev/null; then
+                    brew install curl || { echo "Failed to install curl using brew"; exit 1; }
+                else
+                    echo "Please install curl manually on macOS."
+                    exit 1
+                fi
+            else
+                sudo apt update && sudo apt install -y curl || { echo "Failed to install curl"; exit 1; }
+            fi
+        fi
+
+        # Download get-pip.py using curl if available; otherwise use wget.
+        if command -v curl &>/dev/null; then
+            curl -sS https://bootstrap.pypa.io/get-pip.py -o get-pip.py || { echo "Failed to download get-pip.py with curl"; exit 1; }
+        elif command -v wget &>/dev/null; then
+            wget -q https://bootstrap.pypa.io/get-pip.py -O get-pip.py || { echo "Failed to download get-pip.py with wget"; exit 1; }
+        fi
+
         python3 get-pip.py || { echo "Failed to install pip"; exit 1; }
         rm get-pip.py
     else
@@ -95,7 +114,7 @@ EOF
 
 echo ".env file has been created with your settings."
 
-# Check for requirements.txt; if not found, create it with necessary dependencies.
+# Create requirements.txt if it does not exist.
 if [ ! -f "requirements.txt" ]; then
     echo "requirements.txt not found. Creating requirements.txt with necessary dependencies..."
     cat <<EOL > requirements.txt

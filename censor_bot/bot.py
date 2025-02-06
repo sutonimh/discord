@@ -1,22 +1,23 @@
 import discord
 from discord.ext import commands
+from discord import app_commands
 import re
 from urllib.parse import urlparse
 import os
 from dotenv import load_dotenv
 
-# Load environment variables from the .env file
+# Load environment variables
 load_dotenv()
-
-# Bot version number
-BOT_VERSION = "1.1.0"
 
 # Required environment variable: Bot token
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 if not DISCORD_BOT_TOKEN:
     raise Exception("DISCORD_BOT_TOKEN not found in environment variables.")
 
-# Configuration variables with defaults
+# Bot version number
+BOT_VERSION = "1.1.1"
+
+# Configuration variables (with defaults)
 WARNING_MESSAGE = os.getenv("WARNING_MESSAGE", "Don't post that trash here:")
 blacklisted_domains_env = os.getenv("BLACKLISTED_DOMAINS", "x.com, twitter.com")
 blacklisted_domains = [domain.strip().lower() for domain in blacklisted_domains_env.split(",") if domain.strip()]
@@ -35,52 +36,45 @@ else:
     LOG_CHANNEL_ID = None
     LOGGING_ENABLED = False
 
-# Setup intents; ensure the message_content intent is enabled.
+# Setup bot intents and create bot instance
 intents = discord.Intents.default()
 intents.message_content = True
-
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Global check: only allow slash commands from suto#5101.
-@bot.tree.check
+# Global check: Only allow slash commands from suto#5101.
 async def check_owner(interaction: discord.Interaction) -> bool:
-    # Check username and discriminator
+    # For improved reliability you might prefer to check the user's ID.
     if interaction.user.name == "suto" and interaction.user.discriminator == "5101":
         return True
     else:
-        try:
-            await interaction.response.send_message(
-                "You are not authorized to use this command.", ephemeral=True
-            )
-        except Exception:
-            pass
-        return False
+        raise app_commands.CheckFailure("You are not authorized to use this command.")
 
-# Regular expression pattern to match URLs in a message.
+# Add the global check to the command tree.
+bot.tree.add_check(check_owner)
+
+# Helper function to log command usage.
+async def log_command(interaction: discord.Interaction, command_name: str, details: str = ""):
+    if LOGGING_ENABLED and LOG_CHANNEL_ID:
+        log_channel = bot.get_channel(LOG_CHANNEL_ID)
+        if log_channel:
+            await log_channel.send(f"User {interaction.user} used command /{command_name}. {details}")
+        else:
+            print("Log channel not found.")
+
+# Regular expression to match URLs in messages.
 url_regex = re.compile(
     r"((https?:\/\/)?((www\.)?([\w\-]+\.[\w\-.]+))(\:\d+)?(\/[\w\-.?%&=]*)?)"
 )
 
-async def log_command(interaction: discord.Interaction, command_name: str, details: str = ""):
-    """Helper function to log the usage of slash commands to the log channel."""
-    if LOGGING_ENABLED and LOG_CHANNEL_ID:
-        log_channel = bot.get_channel(LOG_CHANNEL_ID)
-        if log_channel:
-            await log_channel.send(
-                f"User {interaction.user} used command /{command_name}. {details}"
-            )
-        else:
-            print("Log channel not found.")
-
 @bot.event
 async def on_ready():
-    # Sync the app commands (slash commands)
+    # Sync the slash commands (app commands)
     await bot.tree.sync()
     print(f"Logged in as {bot.user.name} (Version: {BOT_VERSION})")
 
 @bot.event
 async def on_message(message):
-    # Ignore messages from the bot itself.
+    # Ignore messages sent by the bot itself.
     if message.author == bot.user:
         return
 
@@ -88,13 +82,12 @@ async def on_message(message):
     urls = url_regex.findall(message.content)
     for url_tuple in urls:
         url = url_tuple[0]
-        # Add scheme if missing.
+        # Ensure the URL has a scheme.
         if not url.startswith("http"):
             url = "http://" + url
 
         parsed_url = urlparse(url)
         domain = parsed_url.netloc.lower()
-        # Remove any port numbers from the domain.
         if ":" in domain:
             domain = domain.split(":")[0]
 
@@ -106,8 +99,6 @@ async def on_message(message):
                     f"{message.author.mention} {WARNING_MESSAGE}\n{url}"
                 )
                 await warning.delete(delay=5)
-                
-                # Log the deletion if logging is enabled.
                 if LOGGING_ENABLED and LOG_CHANNEL_ID:
                     log_channel = bot.get_channel(LOG_CHANNEL_ID)
                     if log_channel:
@@ -120,7 +111,6 @@ async def on_message(message):
                 print("Bot lacks permission to delete messages.")
             break
 
-    # Process any additional commands.
     await bot.process_commands(message)
 
 # Slash command to add a domain to the blacklist.
@@ -128,14 +118,10 @@ async def on_message(message):
 async def adddomain(interaction: discord.Interaction, domain: str):
     domain = domain.strip().lower()
     if domain in blacklisted_domains:
-        await interaction.response.send_message(
-            f"Domain '{domain}' is already blacklisted.", ephemeral=True
-        )
+        await interaction.response.send_message(f"Domain '{domain}' is already blacklisted.", ephemeral=True)
     else:
         blacklisted_domains.append(domain)
-        await interaction.response.send_message(
-            f"Domain '{domain}' added to the blacklist.", ephemeral=True
-        )
+        await interaction.response.send_message(f"Domain '{domain}' added to the blacklist.", ephemeral=True)
     await log_command(interaction, "adddomain", f"Domain: {domain}")
 
 # Slash command to remove a domain from the blacklist.
@@ -144,13 +130,9 @@ async def removedomain(interaction: discord.Interaction, domain: str):
     domain = domain.strip().lower()
     if domain in blacklisted_domains:
         blacklisted_domains.remove(domain)
-        await interaction.response.send_message(
-            f"Domain '{domain}' removed from the blacklist.", ephemeral=True
-        )
+        await interaction.response.send_message(f"Domain '{domain}' removed from the blacklist.", ephemeral=True)
     else:
-        await interaction.response.send_message(
-            f"Domain '{domain}' was not found in the blacklist.", ephemeral=True
-        )
+        await interaction.response.send_message(f"Domain '{domain}' was not found in the blacklist.", ephemeral=True)
     await log_command(interaction, "removedomain", f"Domain: {domain}")
 
 # Slash command to list all blacklisted domains.
@@ -165,9 +147,7 @@ async def listdomains(interaction: discord.Interaction):
 async def setwarning(interaction: discord.Interaction, message: str):
     global WARNING_MESSAGE
     WARNING_MESSAGE = message
-    await interaction.response.send_message(
-        f"Warning message updated to: {WARNING_MESSAGE}", ephemeral=True
-    )
+    await interaction.response.send_message(f"Warning message updated to: {WARNING_MESSAGE}", ephemeral=True)
     await log_command(interaction, "setwarning", f"New warning: {WARNING_MESSAGE}")
 
 # Slash command to set the logging channel.
@@ -176,9 +156,7 @@ async def setlogchannel(interaction: discord.Interaction, channel: discord.TextC
     global LOG_CHANNEL_ID, LOGGING_ENABLED
     LOG_CHANNEL_ID = channel.id
     LOGGING_ENABLED = True
-    await interaction.response.send_message(
-        f"Log channel set to {channel.mention}.", ephemeral=True
-    )
+    await interaction.response.send_message(f"Log channel set to {channel.mention}.", ephemeral=True)
     await log_command(interaction, "setlogchannel", f"Log channel set to: {channel.mention}")
 
 # Slash command to toggle logging on/off.
@@ -187,9 +165,7 @@ async def togglelogging(interaction: discord.Interaction):
     global LOGGING_ENABLED
     LOGGING_ENABLED = not LOGGING_ENABLED
     status = "enabled" if LOGGING_ENABLED else "disabled"
-    await interaction.response.send_message(
-        f"Logging has been {status}.", ephemeral=True
-    )
+    await interaction.response.send_message(f"Logging has been {status}.", ephemeral=True)
     await log_command(interaction, "togglelogging", f"Logging now: {status}")
 
 # Slash command to display the current configuration and status.
@@ -206,7 +182,7 @@ async def status(interaction: discord.Interaction):
     await interaction.response.send_message(status_msg, ephemeral=True)
     await log_command(interaction, "status", details=status_msg)
 
-# Optional help command listing available slash commands.
+# Slash command to display help information.
 @bot.tree.command(name="help", description="Display available slash commands.")
 async def help_command(interaction: discord.Interaction):
     help_text = (
